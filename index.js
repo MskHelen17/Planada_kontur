@@ -15,24 +15,23 @@ function app () {
 
 function processCommand (command) {
     if(command.startsWith('user')){
-        console.log('user command');
+        userCommand(command.slice(5));
     }
     else if(sortRegExp.test(command)) {
-        console.log('sort command');
+        sortCommand(command.slice(5));
     }
     else if(dateRegExp.test(command)) {
-        console.log('date command');
+        dateCommand(command.slice(5));
     }
     else switch (command) {
         case 'exit':
             process.exit(0);
             break;
         case 'show':
-            console.log('show command');
-            displayTable(createToDoStructure());
+            showCommand();
             break;
         case 'important':
-            console.log('important command');
+            importantCommand();
             break;
         default:
             console.log('wrong command');
@@ -55,36 +54,33 @@ function createToDoStructure(){
 
     for (let [filePath, fileData] of filesMap.entries()) {
         let toDoObject = new ToDoObject();
-
         //Обрезаем имя файла
         toDoObject.filename = filePath.slice(filePath.lastIndexOf('\\') + 1);
-
         //Разбиваем весь текст файла на фрагменты от одного комментария до другого
         let toDoFragments = fileData.split('//').filter(textFragment => textFragment.match(/TODO/i));
-
         toDoFragments.forEach(function(toDoFragment, i) {
             //У каждого фрагмента отрезаем нужную часть
-            let regexResult = toDoFragment.match(/TODO((\s?:\s?)|\s*)/i);
-            toDoFragment = toDoFragment.slice(regexResult.index + regexResult[0].length, toDoFragment.indexOf("\n"));
-
-            //Парсим строку: user, date, important, comment
-            if(toDoFragment.includes('!')){
-                toDoObject.importance = toDoFragment.match(/!/g).length;
-            } else {
-                toDoObject.importance = '';
+            let regexResult = toDoFragment.match(/^(\s*)TODO((\s?:\s?)|\s*)/i);
+            if(regexResult){
+                toDoFragment = toDoFragment.slice(regexResult.index + regexResult[0].length, toDoFragment.indexOf("\n"));
+                //Парсим строку: user, date, important, comment
+                if(toDoFragment.includes('!')){
+                    toDoObject.importance = toDoFragment.match(/!/g).length;
+                } else {
+                    toDoObject.importance = 0;
+                }
+                if(toDoFragment.includes(';')){
+                    let commentSections = toDoFragment.split(';').map(section => section.trim());
+                    toDoObject.user = commentSections[0];
+                    toDoObject.date = commentSections[1];
+                    toDoObject.comment = commentSections[2];
+                } else {
+                    toDoObject.user = '';
+                    toDoObject.date = '';
+                    toDoObject.comment = toDoFragment.trim();
+                }
+                toDoStructure.push(toDoObject);
             }
-            if(toDoFragment.includes(';')){
-                let commentSections = toDoFragment.split(';').map(section => section.trim());
-                toDoObject.user = commentSections[0];
-                toDoObject.date = commentSections[1];
-                toDoObject.comment = commentSections[2];
-            } else {
-                toDoObject.user = '';
-                toDoObject.date = '';
-                toDoObject.comment = toDoFragment.trim();
-            }
-
-            toDoStructure.push(toDoObject);
         });
     }
 
@@ -97,6 +93,60 @@ function getFiles () {
     filePaths.map(path => filesMap.set(path, readFile(path)));
 
     return filesMap;
+}
+
+function showCommand(){
+    displayTable(createToDoStructure());
+}
+
+function importantCommand(){
+    let importantFilteredArr = createToDoStructure().filter(toDoObject => !!toDoObject.importance);
+    displayTable(importantFilteredArr);
+}
+
+function userCommand(command){
+    let userRegExp = new RegExp('^' + command,'i')
+    let userFilteredArr = createToDoStructure().filter(toDoObject => toDoObject.user.match(userRegExp));
+    displayTable(userFilteredArr);
+}
+
+function sortCommand(command){
+    let sortedArr = [];
+    switch(command){
+        case 'importance':
+            sortedArr = createToDoStructure().sort((firstToDo,secondToDo) => secondToDo.importance - firstToDo.importance);
+            break;
+        case 'user':
+            sortedArr = createToDoStructure().sort((firstToDo,secondToDo) => {
+                if(!firstToDo)
+                    return 1;
+                if(!secondToDo)
+                    return -1;
+                if(!firstToDo && !secondToDo)
+                    return 0;
+                else
+                    return firstToDo.user.localeCompare(secondToDo.user);
+            });
+            break;
+        case 'date':
+            sortedArr = createToDoStructure().sort((firstToDo,secondToDo) => {
+                if(!firstToDo)
+                    return 1;
+                if(!secondToDo)
+                    return -1;
+                if(!firstToDo && !secondToDo)
+                    return 0;
+                else
+                return new Date(secondToDo.date) - new Date(firstToDo.date);
+            });
+            break;
+    }
+    displayTable(sortedArr);
+}
+
+function dateCommand(command){
+    let dateFilteredArr = createToDoStructure().filter(toDoObject => new Date(toDoObject.date) >= new Date(command));
+    displayTable(dateFilteredArr);
 }
 
 function displayTable(toDoStructure){

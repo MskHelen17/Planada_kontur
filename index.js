@@ -63,12 +63,13 @@ function createToDoStructure(){
     let toDoStructure = [];
 
     for (let [filePath, fileData] of filesMap.entries()) {
-        let toDoObject = new ToDoObject();
         //Обрезаем имя файла
-        toDoObject.filename = filePath.slice(filePath.lastIndexOf('/') + 1);
+        let filename = filePath.slice(filePath.lastIndexOf('/') + 1);
         //Разбиваем весь текст файла на фрагменты от одного комментария до другого, и отбираем только TODO
         let toDoFragments = fileData.split('//').filter(textFragment => textFragment.match(toDoRegExp));
         toDoFragments.forEach(toDoFragment => {
+            let toDoObject = new ToDoObject();
+            toDoObject.filename = filename;
             //У каждого фрагмента отрезаем нужную часть
             let regexResult = toDoFragment.match(toDoRegExp);
             toDoFragment = toDoFragment.slice(regexResult.index + regexResult[0].length, toDoFragment.indexOf("\n"));
@@ -157,8 +158,9 @@ function dateCommand(command){
 }
 
 function displayTable(toDoStructure){
-    //Вычисляем максимальную ширину столбцов
+    //При инициализации содержит минимальные длины столбцов
     let tableLength = [1, 4, 4, 7, 8];
+    //Вычисляем максимальную ширину столбцов
     toDoStructure.forEach(toDoObject => {
         tableLength[1] = Math.max(toDoObject.user.length, tableLength[1]);
         tableLength[2] = Math.max(toDoObject.date.length, tableLength[2]);
